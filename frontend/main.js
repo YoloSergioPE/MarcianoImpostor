@@ -1,6 +1,12 @@
-const socket = io("http://localhost:3001");
+// ==============================
+// SOCKET + APP
+// ==============================
+const socket = io("http://172.16.50.247:3001");
 const app = document.getElementById("app");
 
+// ==============================
+// CONSTANTES
+// ==============================
 const CATEGORIES = [
   "Cantantes",
   "Famosos",
@@ -14,29 +20,148 @@ const CATEGORIES = [
   "Comida"
 ];
 
+const avatars = [
+  "alien_1.png",
+  "alien_2.png",
+  "alien_3.png",
+  "alien_4.png",
+  "alien_5.png",
+  "alien_6.png"
+];
+
+// ==============================
+// ESTADO DEL JUEGO (SOCKET)
+// ==============================
 let state = {
   roomId: null,
-  playerId: null,
   role: null,
   word: null,
   room: null,
   roleConfirmed: false,
-
-  // Votación
   hasVoted: false,
   votedFor: null,
   voteCounts: {},
   votedPlayers: []
 };
 
+// ==============================
+// ESTADO DE UI
+// ==============================
+let uiState = {
+  nickname: "",
+  avatar: "alien_1.png",
+  selectedGame: null,
+  screen: "welcome" // welcome | games | mode | lobby | game
+};
 
-// ----------- HOME -----------
-function renderHome() {
-app.innerHTML = `
+// ==============================
+// WELCOME
+// ==============================
+function renderWelcome() {
+  app.innerHTML = `
+    <div class="welcome-card">
+      <img src="assets/avatars/${uiState.avatar}" class="avatar-large" />
+
+      <h2>Marci Juegos</h2>
+      <p>Personaliza tu identidad</p>
+
+      <input
+        placeholder="Tu nickname"
+        value="${uiState.nickname}"
+        oninput="setNickname(this.value)"
+      />
+
+      <div class="avatar-grid">
+        ${avatars.map(a => `
+          <img
+            src="assets/avatars/${a}"
+            class="avatar-option ${uiState.avatar === a ? "selected" : ""}"
+            onclick="selectAvatar('${a}')"
+          />
+        `).join("")}
+      </div>
+
+      <button onclick="goToGames()">Jugar</button>
+    </div>
+  `;
+}
+
+function setNickname(value) {
+  uiState.nickname = value;
+}
+
+function selectAvatar(avatar) {
+  uiState.avatar = avatar;
+  renderWelcome();
+}
+
+function goToGames() {
+  if (!uiState.nickname.trim()) {
+    alert("Ingresa tu nickname");
+    return;
+  }
+  uiState.screen = "games";
+  renderGames();
+}
+
+// ==============================
+// GAMES
+// ==============================
+function renderGames() {
+  app.innerHTML = `
+    <div class="games-card">
+      <h2>Elige un juego</h2>
+
+      <button class="game-btn active" onclick="selectGame('impostor')">
+        👽 Marciano Impostor
+      </button>
+
+      <button class="game-btn disabled">
+        🔒 Próximamente
+      </button>
+    </div>
+  `;
+}
+
+function selectGame(game) {
+  uiState.selectedGame = game;
+  uiState.screen = "mode";
+  renderMode();
+}
+
+// ==============================
+// MODE
+// ==============================
+function renderMode() {
+  app.innerHTML = `
+    <div class="mode-card">
+      <h2>¿Cómo quieres jugar?</h2>
+
+      <button onclick="renderCreateRoom()">Crear sala</button>
+      <button onclick="renderJoinRoom()">Unirse a sala</button>
+    </div>
+  `;
+}
+
+function renderCreateRoom() {
+  uiState.screen = "lobby";
+  renderLobbySetup();
+}
+
+function renderJoinRoom() {
+  uiState.screen = "lobby";
+  renderLobbySetup();
+}
+
+// ==============================
+// LOBBY SETUP (crear / unirse)
+// ==============================
+function renderLobbySetup() {
+  app.innerHTML = `
     <div class="card">
-      <h2>El Impostor de la Palabra</h2>
+      <h2>Marciano Impostor</h2>
 
-      <input id="name" placeholder="Tu nombre" />
+      <input id="name" placeholder="Tu nombre" value="${uiState.nickname}" />
 
       <select id="category">
         ${CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join("")}
@@ -51,29 +176,27 @@ app.innerHTML = `
     </div>
   `;
 }
-renderHome();
 
-// ----------- CREATE / JOIN -----------
+// ==============================
+// CREATE / JOIN
+// ==============================
 window.createRoom = () => {
   const name = document.getElementById("name").value;
   const category = document.getElementById("category").value;
 
-  socket.emit("createRoom", {
-    name,
-    category
-  });
+  socket.emit("createRoom", { name, category });
 };
-
-
 
 window.joinRoom = () => {
-const name = document.getElementById("name").value;
-const roomId = document.getElementById("roomCode").value;
-socket.emit("joinRoom", { roomId, name });
+  const name = document.getElementById("name").value;
+  const roomId = document.getElementById("roomCode").value;
+
+  socket.emit("joinRoom", { roomId, name });
 };
 
-
-// ----------- ROOM UPDATE -----------
+// ==============================
+// ROOM UPDATE
+// ==============================
 socket.on("roomUpdate", room => {
   state.room = room;
   state.roomId = room.id;
@@ -83,17 +206,10 @@ socket.on("roomUpdate", room => {
     return;
   }
 
-  if (room.phase === "role") {
-    // No renderizamos nada aquí
-    // El rol ya se muestra con roleAssigned
-    return;
-  }
-
   if (room.phase === "round") {
+    state.hasVoted = false;
     state.voteCounts = {};
     state.votedPlayers = [];
-    state.hasVoted = false;
-    state.votedFor = null;
     if (!state.roleConfirmed) return;
     renderRound(room);
     return;
@@ -109,9 +225,9 @@ socket.on("roomUpdate", room => {
   }
 });
 
-
-
-// ----------- LOBBY -----------
+// ==============================
+// LOBBY
+// ==============================
 function renderLobby(room) {
   app.innerHTML = `
     <div class="card">
@@ -133,14 +249,13 @@ function renderLobby(room) {
   `;
 }
 
-
-
 window.startGame = () => {
-socket.emit("startGame", { roomId: state.roomId });
+  socket.emit("startGame", { roomId: state.roomId });
 };
 
-
-// ----------- ROLE -----------
+// ==============================
+// ROLE
+// ==============================
 socket.on("roleAssigned", ({ role, word }) => {
   state.role = role;
   state.word = word;
@@ -168,101 +283,49 @@ window.confirmRole = () => {
   `;
 };
 
-
-
-
-
-// ----------- ROUND -----------
+// ==============================
+// ROUND
+// ==============================
 function renderRound(room) {
   const alivePlayers = room.turnOrder
-  .map(id => room.players.find(p => p.id === id && p.alive))
-  .filter(Boolean);
+    .map(id => room.players.find(p => p.id === id && p.alive))
+    .filter(Boolean);
 
   const currentPlayerId = room.turnOrder[room.turnIndex];
-  const currentTurnPlayer = room.players.find(
-    p => p.id === currentPlayerId && p.alive
-  );
-
-  const currentName = currentTurnPlayer?.name ?? "";
-
-
-  // Barra horizontal de jugadores
-  const playersBar = alivePlayers.map(p => {
-    const isTurn = currentTurnPlayer && p.id === currentTurnPlayer.id;
-    return `
-      <div class="player-slot 
-      ${isTurn ? "active-turn" : ""} 
-      ${p.id === socket.id ? "me" : ""}">
-        <div class="avatar">🧑</div>
-        <div class="player-name">
-          ${p.name}${p.id === socket.id ? " (Tú)" : ""}
-        </div>
-      </div>
-    `;
-  }).join("");
-
-  // Palabras jugadas
-  const wordsHtml = room.wordsPlayed.map(w => {
-    const player = room.players.find(p => p.id === w.playerId);
-    return `
-      <li>
-        <strong>${player ? player.name : "?"}:</strong> ${w.word}
-      </li>
-    `;
-  }).join("");
+  const currentTurnPlayer = room.players.find(p => p.id === currentPlayerId);
 
   app.innerHTML = `
     <div class="card">
       <h3>Ronda ${room.round}</h3>
 
       <div class="players-bar">
-        ${playersBar}
+        ${alivePlayers.map(p => `
+          <div class="player-slot ${p.id === currentPlayerId ? "active-turn" : ""}">
+            <div class="avatar">🧑</div>
+            <div class="player-name">${p.name}</div>
+          </div>
+        `).join("")}
       </div>
 
       <ul class="words-list">
-        ${wordsHtml}
+        ${room.wordsPlayed.map(w => {
+          const player = room.players.find(p => p.id === w.playerId);
+          return `<li><strong>${player.name}:</strong> ${w.word}</li>`;
+        }).join("")}
       </ul>
 
-      ${
-        currentTurnPlayer && socket.id === currentTurnPlayer.id
-          ? `
-            <input id="word" placeholder="Tu palabra" />
-            <button onclick="sendWord()">Enviar palabra</button>
-          `
-          : `<p class="waiting">⏳ Turno de <strong>${currentName}</strong></p>`
-
+      ${currentTurnPlayer.id === socket.id
+        ? `<input id="word" placeholder="Tu palabra" />
+           <button onclick="sendWord()">Enviar palabra</button>`
+        : `<p class="waiting">⏳ Turno de ${currentTurnPlayer.name}</p>`
       }
     </div>
   `;
 }
 
-socket.on("voteUpdate", ({ votes }) => {
-  state.voteCounts = {};
-  state.votedPlayers = Object.keys(votes);
-
-  Object.values(votes).forEach(targetId => {
-    state.voteCounts[targetId] = (state.voteCounts[targetId] || 0) + 1;
-  });
-
-  if (state.room && state.room.phase === "voting") {
-    renderVoting(state.room);
-  }
-});
-
-
-socket.on("voteRegistered", ({ targetId }) => {
-  state.hasVoted = true;
-  state.votedFor = targetId;
-
-  if (state.room) {
-    renderVoting(state.room);
-  }
-});
-
-
 window.sendWord = () => {
   const input = document.getElementById("word");
-  if (!input || !input.value.trim()) return;
+  if (!input.value.trim()) return;
 
   socket.emit("submitWord", {
     roomId: state.roomId,
@@ -270,67 +333,66 @@ window.sendWord = () => {
   });
 };
 
+// ==============================
+// VOTING
+// ==============================
+socket.on("voteUpdate", ({ votes }) => {
+  state.voteCounts = {};
+  state.votedPlayers = Object.keys(votes);
 
-// ----------- VOTING -----------
+  Object.values(votes).forEach(id => {
+    state.voteCounts[id] = (state.voteCounts[id] || 0) + 1;
+  });
+
+  renderVoting(state.room);
+});
+
+socket.on("voteRegistered", () => {
+  state.hasVoted = true;
+  renderVoting(state.room);
+});
+
 function renderVoting(room) {
-  const alivePlayers = room.players.filter(p => p.alive);
-
   app.innerHTML = `
     <div class="card">
       <h3>Votación</h3>
-
       <ul class="words-list">
-        ${alivePlayers.map(p => {
-          const votes = state.voteCounts[p.id] || 0;
-          const hasVoted = state.votedPlayers.includes(p.id);
-
-          return `
-            <li>
-              <strong>${p.name}</strong>
-              ${votes > 0 ? ` — 🗳️ ${votes}` : ""}
-            </li>
-          `;
-        }).join("")}
+        ${room.players.filter(p => p.alive).map(p => `
+          <li>
+            ${p.name}
+            ${state.voteCounts[p.id] ? ` — 🗳️ ${state.voteCounts[p.id]}` : ""}
+          </li>
+        `).join("")}
       </ul>
 
-      <hr />
-
-      ${alivePlayers.map(p => `
-        <button
-          onclick="vote('${p.id}')"
-          ${state.hasVoted ? "disabled" : ""}
-        >
+      ${room.players.filter(p => p.alive).map(p => `
+        <button onclick="vote('${p.id}')" ${state.hasVoted ? "disabled" : ""}>
           ${p.name}
         </button>
       `).join("")}
 
-      ${
-        state.hasVoted
-          ? `<p class="waiting">✔ Voto enviado</p>`
-          : `<p class="waiting">Elige a quién votar</p>`
-      }
+      ${state.hasVoted ? `<p class="waiting">✔ Voto enviado</p>` : ""}
     </div>
   `;
 }
 
-
-
-window.vote = (targetId) => {
-socket.emit("submitVote", { roomId: state.roomId, targetId });
+window.vote = (id) => {
+  socket.emit("submitVote", { roomId: state.roomId, targetId: id });
 };
 
-
-// ----------- END -----------
+// ==============================
+// END
+// ==============================
 function renderEnd(room) {
-  const message =
-    room.winner === "players"
-      ? "🎉 ¡Ganaron los jugadores!"
-      : "🕵️ ¡Ganó el impostor!";
-
   app.innerHTML = `
     <div class="card">
-      <h2>${message}</h2>
+      <h2>${room.winner === "players" ? "🎉 Ganaron los jugadores" : "🕵️ Ganó el impostor"}</h2>
       <button onclick="location.reload()">Jugar otra vez</button>
     </div>
   `;
 }
+
+// ==============================
+// START
+// ==============================
+renderWelcome();

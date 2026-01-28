@@ -1,6 +1,6 @@
 body {
-font-family: Arial, sans-serif;
-background: #0f172a;
+  background: url("assets/bg-space.png") center / cover no-repeat fixed;
+  font-family: 'Inter', sans-serif;font-family: Arial, sans-serif;
 color: #fff;
 margin: 0;
 padding: 20px;
@@ -67,4 +67,42 @@ margin-bottom: 12px;
 }
 .player-slot.me {
   border: 2px solid #22c55e;
+}
+
+
+.welcome-card,
+.games-card,
+.mode-card {
+  background: rgba(20, 30, 60, 0.65);
+  backdrop-filter: blur(12px);
+  border-radius: 20px;
+  padding: 32px;
+  max-width: 420px;
+  margin: auto;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+
+.avatar-large {
+  width: 96px;
+  margin-bottom: 12px;
+}
+
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.avatar-option {
+  width: 56px;
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.avatar-option.selected {
+  opacity: 1;
+  outline: 2px solid #4da3ff;
+  border-radius: 12px;
 }
