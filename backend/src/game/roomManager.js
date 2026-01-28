@@ -1,7 +1,7 @@
 import { rooms } from "../store/rooms.js";
 import { nanoid } from "nanoid";
 
-export function createRoom(hostSocketId, hostName, category) {
+export function createRoom(hostSocketId, hostName, avatar, category) {
   const roomId = nanoid(6);
 
   const room = {
@@ -16,6 +16,7 @@ export function createRoom(hostSocketId, hostName, category) {
       {
         id: hostSocketId,
         name: hostName,
+        avatar,              // 🔥 CLAVE
         alive: true,
         role: null,
         word: null

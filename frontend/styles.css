@@ -1,14 +1,19 @@
+#app {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 body {
   background: url("assets/bg-space.png") center / cover no-repeat fixed;
-  font-family: 'Inter', sans-serif;font-family: Arial, sans-serif;
-color: #fff;
-margin: 0;
-padding: 20px;
+  font-family: 'Inter', Arial, sans-serif;
+  color: #fff;
+  margin: 0;
+  padding: 20px;
 }
-button {
-padding: 10px 16px;
-margin-top: 10px;
-}
+
+
 input {
 padding: 10px;
 width: 100%;
@@ -24,7 +29,8 @@ margin-bottom: 12px;
   gap: 12px;
   justify-content: center;
   margin-bottom: 16px;
-  overflow-x: auto;
+  overflow: hidden;
+  flex-wrap: wrap;
 }
 
 .player-slot {
@@ -105,4 +111,145 @@ margin-bottom: 12px;
   opacity: 1;
   outline: 2px solid #4da3ff;
   border-radius: 12px;
+}
+
+.avatar-small {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+}
+
+.player-slot.host {
+  outline: 2px solid #facc15;
+}
+
+.vote-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px;
+}
+
+.vote-card {
+  background: #0f172a;
+  border-radius: 14px;
+  padding: 12px;
+  text-align: center;
+  box-shadow: 0 0 15px rgba(56,189,248,.25);
+  transition: transform .2s ease, opacity .2s ease;
+}
+
+.vote-card img {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  margin-bottom: 8px;
+}
+
+.vote-card h4 {
+  margin: 4px 0;
+  font-size: 14px;
+}
+
+.vote-card .votes {
+  font-size: 13px;
+  margin: 4px 0;
+}
+
+.vote-card button {
+  width: 100%;
+}
+
+.vote-card.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.game-card {
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(14px);
+  border-radius: 22px;
+  padding: 32px;
+  width: 100%;
+  max-width: 520px;
+  box-shadow: 0 30px 80px rgba(0,0,0,.5);
+  animation: fadeIn .3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+button {
+  background: linear-gradient(135deg, #38bdf8, #2563eb);
+  border: none;
+  border-radius: 14px;
+  padding: 12px 18px;
+  margin-top: 10px;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease;
+  box-shadow: 0 10px 25px rgba(37,99,235,.35);
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 35px rgba(37,99,235,.5);
+}
+
+button:disabled {
+  opacity: .5;
+  pointer-events: none;
+}
+
+button.secondary {
+  background: rgba(255,255,255,.1);
+  box-shadow: none;
+}
+
+select {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  background: #020617;
+  color: #fff;
+  border: 1px solid #334155;
+  margin-bottom: 12px;
+}
+
+.game-card.ingame {
+  max-width: 700px;
+}
+
+.words-list {
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.players-bar {
+  gap: 18px;
+  padding: 10px 0;
+}
+
+.player-slot {
+  min-width: 90px;
+  padding: 12px;
+}
+
+.avatar-small {
+  width: 64px;
+  height: 64px;
+}
+
+.player-name {
+  font-size: 13px;
+  margin-top: 6px;
+}
+
+.vote-grid {
+  justify-items: center;
+}
+
+.vote-card {
+  width: 150px;
 }

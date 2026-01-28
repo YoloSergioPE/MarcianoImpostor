@@ -1,7 +1,7 @@
 // ==============================
 // SOCKET + APP
 // ==============================
-const socket = io("http://172.16.50.247:3001");
+const socket = io("http://192.168.1.42:3001");
 const app = document.getElementById("app");
 
 // ==============================
@@ -26,7 +26,9 @@ const avatars = [
   "alien_3.png",
   "alien_4.png",
   "alien_5.png",
-  "alien_6.png"
+  "alien_6.png",
+  "alien_7.png",
+  "alien_8.png"
 ];
 
 // ==============================
@@ -39,7 +41,6 @@ let state = {
   room: null,
   roleConfirmed: false,
   hasVoted: false,
-  votedFor: null,
   voteCounts: {},
   votedPlayers: []
 };
@@ -137,31 +138,21 @@ function renderMode() {
     <div class="mode-card">
       <h2>¿Cómo quieres jugar?</h2>
 
-      <button onclick="renderCreateRoom()">Crear sala</button>
-      <button onclick="renderJoinRoom()">Unirse a sala</button>
+      <button onclick="renderCreateRoomScreen()">Crear sala</button>
+      <button onclick="renderJoinRoomScreen()">Unirse a sala</button>
+
     </div>
   `;
 }
 
-function renderCreateRoom() {
-  uiState.screen = "lobby";
-  renderLobbySetup();
-}
+function renderCreateRoomScreen() {
+  uiState.screen = "create";
 
-function renderJoinRoom() {
-  uiState.screen = "lobby";
-  renderLobbySetup();
-}
-
-// ==============================
-// LOBBY SETUP (crear / unirse)
-// ==============================
-function renderLobbySetup() {
   app.innerHTML = `
-    <div class="card">
-      <h2>Marciano Impostor</h2>
+    <div class="game-card">
+      <h2>Crear sala</h2>
 
-      <input id="name" placeholder="Tu nombre" value="${uiState.nickname}" />
+      <p><strong>Jugador:</strong> ${uiState.nickname}</p>
 
       <select id="category">
         ${CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join("")}
@@ -169,10 +160,25 @@ function renderLobbySetup() {
 
       <button onclick="createRoom()">Crear sala</button>
 
-      <hr />
+      <button class="secondary" onclick="renderMode()">⬅ Volver</button>
+    </div>
+  `;
+}
+
+function renderJoinRoomScreen() {
+  uiState.screen = "join";
+
+  app.innerHTML = `
+    <div class="game-card">
+      <h2>Unirse a sala</h2>
+
+      <p><strong>Jugador:</strong> ${uiState.nickname}</p>
 
       <input id="roomCode" placeholder="Código de sala" />
+
       <button onclick="joinRoom()">Unirse</button>
+
+      <button class="secondary" onclick="renderMode()">⬅ Volver</button>
     </div>
   `;
 }
@@ -181,18 +187,30 @@ function renderLobbySetup() {
 // CREATE / JOIN
 // ==============================
 window.createRoom = () => {
-  const name = document.getElementById("name").value;
   const category = document.getElementById("category").value;
 
-  socket.emit("createRoom", { name, category });
+  socket.emit("createRoom", {
+    name: uiState.nickname,
+    avatar: uiState.avatar,
+    category
+  });
 };
 
 window.joinRoom = () => {
-  const name = document.getElementById("name").value;
   const roomId = document.getElementById("roomCode").value;
 
-  socket.emit("joinRoom", { roomId, name });
+  if (!roomId.trim()) {
+    alert("Ingresa el código de la sala");
+    return;
+  }
+
+  socket.emit("joinRoom", {
+    roomId,
+    name: uiState.nickname,
+    avatar: uiState.avatar
+  });
 };
+
 
 // ==============================
 // ROOM UPDATE
@@ -230,24 +248,30 @@ socket.on("roomUpdate", room => {
 // ==============================
 function renderLobby(room) {
   app.innerHTML = `
-    <div class="card">
+    <div class="game-card">
       <h3>Sala ${room.id}</h3>
 
-      <p><strong>Jugadores:</strong></p>
-      <ul>
-        ${room.players.map(p => `<li>${p.name}</li>`).join("")}
-      </ul>
+      <div class="players-bar">
+        ${room.players.map(p => `
+          <div class="player-slot ${p.id === socket.id ? "me" : ""}">
+            <img src="assets/avatars/${p.avatar}" class="avatar-small" />
+            <div class="player-name">${p.name}</div>
+          </div>
+        `).join("")}
+      </div>
 
       ${socket.id === room.hostId
         ? `
           <p><strong>Categoría:</strong> ${room.category}</p>
           <button onclick="startGame()">Iniciar partida</button>
         `
-        : `<p>⏳ Esperando que el host inicie la partida...</p>`
+        : `<p class="waiting">⏳ Esperando que el host inicie la partida...</p>`
       }
     </div>
   `;
 }
+
+
 
 window.startGame = () => {
   socket.emit("startGame", { roomId: state.roomId });
@@ -262,7 +286,7 @@ socket.on("roleAssigned", ({ role, word }) => {
   state.roleConfirmed = false;
 
   app.innerHTML = `
-    <div class="card">
+    <div class="game-card">
       <h2>Tu rol: ${role.toUpperCase()}</h2>
       <h3>Tu palabra:</h3>
       <p><strong>${word}</strong></p>
@@ -276,7 +300,7 @@ window.confirmRole = () => {
   socket.emit("confirmRole", { roomId: state.roomId });
 
   app.innerHTML = `
-    <div class="card">
+    <div class="game-card">
       <h2>Rol confirmado</h2>
       <p>⏳ Esperando a los demás jugadores...</p>
     </div>
@@ -292,16 +316,21 @@ function renderRound(room) {
     .filter(Boolean);
 
   const currentPlayerId = room.turnOrder[room.turnIndex];
-  const currentTurnPlayer = room.players.find(p => p.id === currentPlayerId);
+  const currentTurnPlayer = room.players.find(
+    p => p.id === currentPlayerId && p.alive
+  );
+
 
   app.innerHTML = `
-    <div class="card">
+    <div class="game-card ingame">
       <h3>Ronda ${room.round}</h3>
 
       <div class="players-bar">
         ${alivePlayers.map(p => `
-          <div class="player-slot ${p.id === currentPlayerId ? "active-turn" : ""}">
-            <div class="avatar">🧑</div>
+          <div class="player-slot 
+          ${p.id === socket.id ? "me" : ""} 
+          ${p.id === currentPlayerId ? "active-turn" : ""}">
+            <img src="assets/avatars/${p.avatar}" class="avatar-small" />
             <div class="player-name">${p.name}</div>
           </div>
         `).join("")}
@@ -354,27 +383,37 @@ socket.on("voteRegistered", () => {
 
 function renderVoting(room) {
   app.innerHTML = `
-    <div class="card">
+    <div class="game-card">
       <h3>Votación</h3>
-      <ul class="words-list">
-        ${room.players.filter(p => p.alive).map(p => `
-          <li>
-            ${p.name}
-            ${state.voteCounts[p.id] ? ` — 🗳️ ${state.voteCounts[p.id]}` : ""}
-          </li>
-        `).join("")}
-      </ul>
 
-      ${room.players.filter(p => p.alive).map(p => `
-        <button onclick="vote('${p.id}')" ${state.hasVoted ? "disabled" : ""}>
-          ${p.name}
-        </button>
-      `).join("")}
+      <div class="vote-grid">
+        ${room.players
+          .filter(p => p.alive)
+          .map(p => `
+            <div class="vote-card ${state.hasVoted ? "disabled" : ""}">
+              <img src="assets/avatars/${p.avatar}" />
+              <h4>${p.name}</h4>
+
+              ${state.voteCounts[p.id]
+                ? `<div class="votes">🗳 ${state.voteCounts[p.id]}</div>`
+                : ""
+              }
+
+              <button
+                onclick="vote('${p.id}')"
+                ${state.hasVoted ? "disabled" : ""}
+              >
+                Votar
+              </button>
+            </div>
+          `).join("")}
+      </div>
 
       ${state.hasVoted ? `<p class="waiting">✔ Voto enviado</p>` : ""}
     </div>
   `;
 }
+
 
 window.vote = (id) => {
   socket.emit("submitVote", { roomId: state.roomId, targetId: id });
@@ -385,7 +424,7 @@ window.vote = (id) => {
 // ==============================
 function renderEnd(room) {
   app.innerHTML = `
-    <div class="card">
+    <div class="game-card">
       <h2>${room.winner === "players" ? "🎉 Ganaron los jugadores" : "🕵️ Ganó el impostor"}</h2>
       <button onclick="location.reload()">Jugar otra vez</button>
     </div>
