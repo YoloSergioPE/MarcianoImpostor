@@ -16,7 +16,13 @@ export function startRound(room) {
 export function endRoundAndGoToVoting(room) {
   room.phase = "voting";
   room.turnIndex = 0;
+
+  // ✅ SOLO estos jugadores pueden votar en esta ronda
+  room.votingPlayers = room.players
+    .filter(p => p.alive)
+    .map(p => p.id);
 }
+
 
 export function afterVoting(room, eliminatedPlayerId) {
   // Eliminar jugador

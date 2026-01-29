@@ -134,32 +134,28 @@ export default function (io, socket) {
     const room = getRoom(roomId);
     if (!room || room.phase !== "voting") return;
 
-    const voter = room.players.find(p => p.id === socket.id);
-
-    // ❌ jugador muerto NO puede votar
-    if (!voter || !voter.alive) return;
+    // ❌ solo jugadores habilitados para ESTA votación
+    if (!room.votingPlayers || !room.votingPlayers.includes(socket.id)) return;
 
     // ❌ no puede votar dos veces
     if (room.votes[socket.id]) return;
 
-    // Guardar voto
     room.votes[socket.id] = targetId;
 
-    // Feedback SOLO al que vota
     io.to(socket.id).emit("voteRegistered", { targetId });
 
-    // Estado global de votos
     io.to(roomId).emit("voteUpdate", {
       votes: room.votes
     });
 
-    const alivePlayers = room.players.filter(p => p.alive);
-
-    // ¿Todos votaron?
-    if (Object.keys(room.votes).length === alivePlayers.length) {
+    // ¿Todos los habilitados votaron?
+    if (Object.keys(room.votes).length === room.votingPlayers.length) {
       const eliminated = countVotes(room.votes);
 
       afterVoting(room, eliminated);
+
+      // limpieza defensiva
+      delete room.votingPlayers;
 
       io.to(roomId).emit("roomUpdate", room);
     }
