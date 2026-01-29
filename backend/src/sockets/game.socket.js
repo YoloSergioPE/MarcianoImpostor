@@ -3,6 +3,11 @@ import { assignRoles } from "../game/roles.js";
 import { generateWords } from "../ai/wordGenerator.js";
 import { isValidWord } from "../utils/validators.js";
 import { countVotes } from "../game/voting.js";
+import {
+  startRound,
+  endRoundAndGoToVoting,
+  afterVoting
+} from "../game/gameFlow.js";
 
 export default function (io, socket) {
 
@@ -31,7 +36,7 @@ export default function (io, socket) {
     assignRoles(room, words);
 
     // --------------------------
-    // ORDEN DE TURNOS ALEATORIO
+    // ORDEN DE TURNOS INICIAL
     // (Impostor nunca inicia ni es segundo)
     // --------------------------
     const alivePlayers = room.players.filter(p => p.alive);
@@ -82,14 +87,13 @@ export default function (io, socket) {
     );
 
     if (allConfirmed) {
-      room.phase = "round";
-      room.turnIndex = 0;
+      startRound(room); // 🔥 AQUÍ SE INICIA LA PRIMERA RONDA BIEN
       io.to(roomId).emit("roomUpdate", room);
     }
   });
 
   // ==========================
-  // ENVIAR PALABRA (TURNOS REALES)
+  // ENVIAR PALABRA (TURNOS)
   // ==========================
   socket.on("submitWord", ({ roomId, word }) => {
     const room = getRoom(roomId);
@@ -117,19 +121,26 @@ export default function (io, socket) {
 
     // ¿Todos jugaron?
     if (room.turnIndex >= room.turnOrder.length) {
-      room.phase = "voting";
-      room.turnIndex = 0;
+      endRoundAndGoToVoting(room);
     }
 
     io.to(roomId).emit("roomUpdate", room);
   });
 
   // ==========================
-  // VOTACIÓN + FEEDBACK + GANADOR
+  // VOTACIÓN
   // ==========================
   socket.on("submitVote", ({ roomId, targetId }) => {
     const room = getRoom(roomId);
     if (!room || room.phase !== "voting") return;
+
+    const voter = room.players.find(p => p.id === socket.id);
+
+    // ❌ jugador muerto NO puede votar
+    if (!voter || !voter.alive) return;
+
+    // ❌ no puede votar dos veces
+    if (room.votes[socket.id]) return;
 
     // Guardar voto
     room.votes[socket.id] = targetId;
@@ -142,55 +153,13 @@ export default function (io, socket) {
       votes: room.votes
     });
 
-
     const alivePlayers = room.players.filter(p => p.alive);
 
+    // ¿Todos votaron?
     if (Object.keys(room.votes).length === alivePlayers.length) {
       const eliminated = countVotes(room.votes);
 
-      if (eliminated) {
-        const player = room.players.find(p => p.id === eliminated);
-        if (player) player.alive = false;
-      }
-
-      // Reset de ronda
-      room.votes = {};
-      room.wordsPlayed = [];
-      room.round++;
-
-      // ==========================
-      // CONDICIONES DE VICTORIA
-      // ==========================
-      let winner = null;
-      const aliveAfterVote = room.players.filter(p => p.alive);
-
-      // Jugadores ganan
-      if (eliminated && eliminated === room.impostorId) {
-        winner = "players";
-      }
-
-      // Impostor gana por 1v1
-      if (!winner) {
-        const impostorAlive = aliveAfterVote.some(
-          p => p.id === room.impostorId
-        );
-        if (impostorAlive && aliveAfterVote.length <= 2) {
-          winner = "impostor";
-        }
-      }
-
-      // Impostor gana por rondas
-      if (!winner && room.round > room.maxRounds) {
-        winner = "impostor";
-      }
-
-      if (winner) {
-        room.phase = "ended";
-        room.winner = winner;
-      } else {
-        room.phase = "round";
-        room.turnIndex = 0;
-      }
+      afterVoting(room, eliminated);
 
       io.to(roomId).emit("roomUpdate", room);
     }

@@ -343,10 +343,12 @@ function renderRound(room) {
         }).join("")}
       </ul>
 
-      ${currentTurnPlayer.id === socket.id
+      ${currentTurnPlayer && currentTurnPlayer.id === socket.id
         ? `<input id="word" placeholder="Tu palabra" />
-           <button onclick="sendWord()">Enviar palabra</button>`
-        : `<p class="waiting">⏳ Turno de ${currentTurnPlayer.name}</p>`
+          <button onclick="sendWord()">Enviar palabra</button>`
+        : `<p class="waiting">
+            ⏳ Turno de ${currentTurnPlayer?.name || "otro jugador"}
+          </p>`
       }
     </div>
   `;

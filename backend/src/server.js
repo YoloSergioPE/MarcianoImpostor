@@ -19,6 +19,11 @@ export function createServer() {
     cors: { origin: "*" }
   });
 
+  // Servir overlay
+  app.use("/overlay", express.static(
+    path.join(__dirname, "../frontend/overlay")
+  ));
+  
   registerSockets(io);
 
   server.listen(3001, () => {
