@@ -1,7 +1,7 @@
 // ==============================
 // SOCKET + APP
 // ==============================
-const socket = io("http://192.168.1.42:3001");
+const socket = io(window.location.origin);
 const app = document.getElementById("app");
 
 // ==============================

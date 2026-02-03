@@ -3,12 +3,10 @@ const params = new URLSearchParams(window.location.search);
 const roomId = params.get("room");
 
 // overlay se conecta como spectator
-const socket = io("http://192.168.1.42:3001", {
-  query: {
-    role: "spectator",
-    roomId
-  }
+const socket = io(window.location.origin, {
+  query: { role: "spectator", roomId }
 });
+
 
 let roomState = null;
 
